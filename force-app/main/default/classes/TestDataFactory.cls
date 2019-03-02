@@ -44,7 +44,21 @@ public with sharing class TestDataFactory {
 	 */
 	public static SObject createFullObject(String sObjectType, Boolean fillOnlyRequired, Boolean createReferences){
 		sObject sObjectRecord = createSkeletonObject(sObjectType);
-		populateFields(sObjectRecord, sObjectType, fillOnlyRequired, createReferences);
+		Map<String, String> defaultValues = new Map<String, String>();
+		populateFields(sObjectRecord, sObjectType, defaultValues, fillOnlyRequired, createReferences);
+		return sObjectRecord;
+	}
+
+	/**
+	 * Create an SObject complete will all data
+	 * @param  sObjectType API Name for SObject (Account, Contact, Lead, Custom__c, etc)
+	 * @param fieldDefaultValues		Map containing the API Names and values of the fields prefilled by User
+	 * @param  fillOnlyRequired Whether all fields, or only required ones should be populated
+	 * @return             SObject with all fields populated
+	 */
+	public static SObject createFullObject(String sObjectType, Map<String, String> fieldDefaultValues, Boolean fillOnlyRequired, Boolean createReferences){
+		sObject sObjectRecord = createSkeletonObject(sObjectType);
+		populateFields(sObjectRecord, sObjectType, fieldDefaultValues, fillOnlyRequired, createReferences);
 		return sObjectRecord;
 	}
 
@@ -62,14 +76,16 @@ public with sharing class TestDataFactory {
 	 * Populates the desired fields on the SObject
 	 * @param sObjectRecord              The SObject to fill fields on
 	 * @param sObjectType      The type of SObject
+	 * @param fieldDefaultValues		Map containing the API Names and values of the fields prefilled by User
 	 * @param fillOnlyRequired Whether all fields, or only required ones should be populated
 	 */
-	private static void populateFields(sObject sObjectRecord, String sObjectType, Boolean fillOnlyRequired, Boolean createReferences){
+	private static void populateFields(sObject sObjectRecord, String sObjectType, Map<String, String> fieldDefaultValues, Boolean fillOnlyRequired, Boolean createReferences){
 		Map<String, Schema.SObjectField> fieldMap = fieldDescribeMap.get(sObjectType);
 
 		Set<String> globalExcludedFields = new Set<String>{'CleanStatus', 'IncludeBosses'};
 
 		for(String fieldName : fieldMap.keySet()){
+
 			Schema.DescribeFieldResult fieldResult = fieldMap.get(fieldName).getDescribe();
 
 			Schema.DisplayType fieldType = fieldResult.getType();
@@ -82,18 +98,27 @@ public with sharing class TestDataFactory {
 					continue;
 				}
 
-
-				Object fieldValue = getFieldValue(fieldResult, sObjectType, createReferences);
+				Object fieldValue;
+				//Skip fields defined by user
+				if( fieldDefaultValues.keySet().contains(fieldName) ){
+					String fieldDefinedValue = fieldDefaultValues.get(fieldName);
+					fieldValue = getFieldValue(fieldResult, sObjectType, createReferences, fieldDefinedValue);
+				} else {
+					fieldValue = getFieldValue(fieldResult, sObjectType, createReferences, null);
+				}
 				sObjectRecord.put(fieldName, fieldValue);
 			}
 		}
 	}
 
-	private static Object getFieldValue(Schema.DescribeFieldResult fieldResult, String sObjectType, Boolean createReferences){
+	private static Object getFieldValue(Schema.DescribeFieldResult fieldResult, String sObjectType, Boolean createReferences, String fieldDefinedValue){
 		Schema.DisplayType fieldType = fieldResult.getType();
 		Object fieldValue;
 
 		System.debug('Current Field: ' + fieldResult.getName() + ' / Type: ' + fieldType);
+		System.debug('User Defined Value for Field: ' + fieldDefinedValue);
+
+		//TODO: Implement methods to set user defined values
 
 		if( fieldType === Schema.DisplayType.Boolean ){
 			fieldValue = getRandomInteger(20) < 10 ? true : false;
@@ -113,7 +138,7 @@ public with sharing class TestDataFactory {
 		} else if( fieldType === Schema.DisplayType.EncryptedString ){
 			fieldValue = getRandomString(fieldResult.getLength());
 		} else if( fieldType === Schema.DisplayType.Integer ){
-			fieldValue = getRandomInteger( getInteger( getIntegerString( fieldResult.getDigits() ) ) );
+			fieldValue = getRandomInteger( getIntegerString( fieldResult.getDigits() ) );
 		} else if( fieldType === Schema.DisplayType.MultiPicklist ){
 			fieldValue = getRandomPicklistValue(fieldResult);
 		} else if( fieldType === Schema.DisplayType.Percent ){
