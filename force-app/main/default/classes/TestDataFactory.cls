@@ -50,7 +50,7 @@ public with sharing class TestDataFactory {
 	}
 
 	/**
-	 * Create an SObject complete will all data
+	 * Create an SObject complete will all data AND allow for a map of user specified values
 	 * @param  sObjectType API Name for SObject (Account, Contact, Lead, Custom__c, etc)
 	 * @param fieldDefaultValues		Map containing the API Names and values of the fields prefilled by User
 	 * @param  fillOnlyRequired Whether all fields, or only required ones should be populated
